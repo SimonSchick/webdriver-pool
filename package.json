@@ -1,0 +1,33 @@
+{
+  "name": "webdriver-pool",
+  "version": "0.1.0",
+  "description": "Pooling class for webdriver instances.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@gitlab.com:simon.schick/webdriver-pool.git"
+  },
+  "keywords": [
+    "webdriver",
+    "pool"
+  ],
+  "author": "Simon Schick",
+  "license": "ISC",
+  "devDependencies": {
+    "gulp": "~3.8.11",
+    "gulp-load-plugins": "~0.10.0",
+    "q": "~1.4.1",
+    "gulp-jscs": "^1.4.0",
+    "gulp-jshint": "^1.9.4",
+    "jshint-stylish": "^1.0.1"
+  },
+  "dependencies": {
+    "lodash": "^3.9.1",
+    "q": "^1.4.1",
+    "resig-class": "^0.1.0",
+    "selenium-webdriver": "^2.45.1"
+  }
+}
