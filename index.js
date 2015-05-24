@@ -7,6 +7,8 @@ var Q = require('q');
 var _ = require('lodash');
 var util = require('util');
 
+
+
 module.exports = Class.extend(
 /** @lends  WebDriverPool.prototype */
 {
@@ -74,7 +76,26 @@ module.exports = Class.extend(
 	 */
 	init: function(settings) {
 
-		this.settings = settings;
+		this.settings = {
+			count:		1,
+			browser:	'phantomjs',
+			logging: {
+				path:		'webdriverfiles',
+				level:		'INFO'
+			},
+			storage: {
+				path:		'webdriverfiles'
+			},
+			scriptTimeout:		15000,
+			pageTimeout:		15000,
+			implicitTimeout:	1500,
+			viewport:			{
+									width:	1280,
+									height:	800
+								}
+		};
+
+		_.extend(this.settings, settings);
 
 		this.drivers = [];
 		this.availableDrivers = [];
