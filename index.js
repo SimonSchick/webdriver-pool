@@ -249,6 +249,7 @@ module.exports = class WebDriverPool {
 	 * @return {Promise.<WebDriver>}
 	 */
 	getDriver() {
+		debugger;
 		const settings = this.settings;
 		let ret;
 		if (this.availableDrivers.length > 0) {
@@ -269,7 +270,7 @@ module.exports = class WebDriverPool {
 				if (this.settings.userAgent) {
 					additional.push(driver.executePhantomJS(phantom.setUserAgent, settings.userAgent));
 				}
-				Q.all(additional)
+				return Q.all(additional)
 				.thenResolve(driver);
 			});
 		}
