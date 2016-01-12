@@ -5,36 +5,36 @@ const Q = require('q');
 const _ = require('lodash');
 const util = require('util');
 
-module.exports = class WebDriverPool {
+/**
+ * All functions in this object are ran in the phantomJS context
+ */
+const phantom = {
+	/**
+	 * Sets the proxy.
+	 * @param {Object} proxy
+	 */
+	setProxy(proxy) {
+		phantom.setProxy(proxy.address, proxy.port, 'http', proxy.username, proxy.password);
+		return true;
+	},
 
 	/**
-	 * All functions in this object are ran in the phantomJS context
+	 * Function ran in the phantomjs context
+	 * @param {string} userAgent
 	 */
-	static phantom = {
-		/**
-		 * Sets the proxy.
-		 * @param {Object} proxy
-		 */
-		setProxy(proxy) {
-			phantom.setProxy(proxy.address, proxy.port, 'http', proxy.username, proxy.password);
-			return true;
-		},
+	setUserAgent(userAgent) {
+		this.settings.userAgent = userAgent;
+	},
 
-		/**
-		 * Function ran in the phantomjs context
-		 * @param {string} userAgent
-		 */
-		setUserAgent(userAgent) {
-			this.settings.userAgent = userAgent;
-		},
-
-		/**
-		 * Function to fetch the process id in the phantomjs context
-		 */
-		getProcessId() {
-			return require('system').pid;
-		}
+	/**
+	 * Function to fetch the process id in the phantomjs context
+	 */
+	getProcessId() {
+		return require('system').pid;
 	}
+};
+
+module.exports = class WebDriverPool {
 
 	/**
 	 * Validates that all drivers are still responsive.
@@ -174,7 +174,7 @@ module.exports = class WebDriverPool {
 		])
 		.then(() => {
 			if (settings.browser === 'phantomjs') {
-				return driver.executePhantomJS(self.phantom.getProcessId)
+				return driver.executePhantomJS(phantom.getProcessId)
 				.then(pid => {
 					driver.pid = pid;
 				});
@@ -259,10 +259,10 @@ module.exports = class WebDriverPool {
 			ret = ret.then(driver => {
 				const additional = [];
 				if (this.settings.proxy) {
-					additional.push(driver.executePhantomJS(self.phantom.setProxy, settings.proxy));
+					additional.push(driver.executePhantomJS(phantom.setProxy, settings.proxy));
 				}
 				if (this.settings.userAgent) {
-					additional.push(driver.executePhantomJS(self.phantom.setUserAgent, settings.userAgent));
+					additional.push(driver.executePhantomJS(phantom.setUserAgent, settings.userAgent));
 				}
 				Q.all(additional)
 				.thenResolve(driver);
