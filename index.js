@@ -295,12 +295,13 @@ module.exports = class WebDriverPool extends EventEmitter {
 		if (!_.contains(this.drivers, driver)) {
 			throw new Error('Driver does not belong to pool');
 		}
-		_.remove(this.busyDrivers, driver);
-		this.availableDrivers.push(driver);
 		const deferred = this.getQueue.pop();
 		if (deferred) {
 			deferred.resolve(driver);
+			return;
 		}
+		_.remove(this.busyDrivers, driver);
+		this.availableDrivers.push(driver);
 	}
 
 	/**
