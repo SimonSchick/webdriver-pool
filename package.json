@@ -21,6 +21,6 @@
     "q": "^1.4.1"
   },
   "peerDependencies": {
-    "selenium-webdriver": "^2.45.1"
+    "selenium-webdriver": "^2.48.2"
   }
 }
