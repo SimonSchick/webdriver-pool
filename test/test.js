@@ -1,26 +1,28 @@
 'use strict';
 
-var assert = require('assert'); // node.js core module
+const assert = require('assert');
 
-var WebDriverPool = require('../index');
+const WebDriverPool = require('../index');
 
-var webdriver = require('selenium-webdriver');
-var WebDriver = webdriver.WebDriver;
+const webdriver = require('selenium-webdriver');
+const WebDriver = webdriver.WebDriver;
 
 /* global describe, it */
 
 function basicPool() {
 	return new WebDriverPool({
-				count: 1
-			}).ready();
+		count: 1
+	}).ready();
 }
 
-describe('WebDriverPool', function() {
-	describe('#init()', function() {
+/* eslint-disable max-nested-callbacks */
 
-		it('can build one driver', function(done) {
+describe('WebDriverPool', () => {
+	describe('#init()', () => {
+
+		it('can build one driver', done => {
 			basicPool()
-			.then(function(pool) {
+			.then(pool => {
 				assert.equal(pool.availableDrivers.length, 1);
 				done();
 				return pool.destroy();
@@ -30,10 +32,10 @@ describe('WebDriverPool', function() {
 		});
 	});
 
-	describe('#ready()', function() {
-		it('Returns a promise that resolves once all drivers are build', function(done) {
+	describe('#ready()', () => {
+		it('Returns a promise that resolves once all drivers are build', done => {
 			basicPool()
-			.then(function(pool) {
+			.then(pool => {
 				done();
 				return pool.destroy();
 			}, done)
@@ -41,43 +43,40 @@ describe('WebDriverPool', function() {
 		});
 	});
 
-	describe('#getDriver()', function() {
-		it('Returns a promise that resolves a driver', function(done) {
+	describe('#getDriver()', () => {
+		it('Returns a promise that resolves a driver', done => {
 			basicPool()
-			.then(function(pool) {
-				return pool.getDriver()
-					.then(function(driver) {
+			.then(pool =>
+				pool.getDriver()
+				.then(driver => {
 					assert(driver instanceof WebDriver);
 					done();
 				})
 				.catch(done)
-				.finally(function() {
+				.finally(() => {
 					pool.destroy();
-				});
-			})
+				})
+			)
 			.done();
 		});
 	});
 
-	describe('#returnDriver()', function() {
-		it('Returns the driver back to the pool for the next in the queue to receive it', function(done) {
+	describe('#returnDriver()', () => {
+		it('Returns the driver back to the pool for the next in the queue to receive it', done => {
 			basicPool()
-			.then(function(pool) {
-				return pool.getDriver()
-				.then(function(driver) {
-					return pool.returnDriver(driver);
-				})
-				.then(function(driver) {
-					return pool.getDriver(pool);
-				})
-				.then(function() {
+			.then(pool =>
+				pool.getDriver()
+				.then(driver =>
+					pool.returnDriver(driver)
+				)
+				.then(() =>
+					pool.getDriver(pool)
+				)
+				.finally(() => {
 					done();
-				}, done)
-				.finally(function() {
 					pool.destroy();
-				});
-			});
+				})
+			);
 		});
 	});
-
 });

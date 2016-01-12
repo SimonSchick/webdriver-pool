@@ -1,30 +1,22 @@
 'use strict';
 
-var Class = require('resig-class');
+const WebDriver = require('selenium-webdriver');
+const Q = require('q');
+const _ = require('lodash');
+const util = require('util');
 
-var WebDriver = require('selenium-webdriver');
-var Q = require('q');
-var _ = require('lodash');
-var util = require('util');
-
-
-
-module.exports = Class.extend(
-/** @lends  WebDriverPool.prototype */
-{
+module.exports = class WebDriverPool {
 
 	/**
 	 * All functions in this object are ran in the phantomJS context
 	 */
-	phantom: {
+	static phantom = {
 		/**
 		 * Sets the proxy.
 		 * @param {Object} proxy
 		 */
-		setProxy: function(proxy) {
-			/* global phantom: Object */
+		setProxy(proxy) {
 			phantom.setProxy(proxy.address, proxy.port, 'http', proxy.username, proxy.password);
-			/* global -phantom */
 			return true;
 		},
 
@@ -32,67 +24,66 @@ module.exports = Class.extend(
 		 * Function ran in the phantomjs context
 		 * @param {string} userAgent
 		 */
-		setUserAgent: function(userAgent) {
+		setUserAgent(userAgent) {
 			this.settings.userAgent = userAgent;
 		},
 
 		/**
 		 * Function to fetch the process id in the phantomjs context
 		 */
-		getProcessId: function() {
+		getProcessId() {
 			return require('system').pid;
 		}
-	},
+	}
 
 	/**
 	 * Validates that all drivers are still responsive.
 	 */
-	checkDrivers: function() {
-		var self = this;
-		_.forEach(this.availableDrivers, function(driver) {
+	checkDrivers() {
+		_.forEach(this.availableDrivers, driver => {
 			driver.getTitle()
-			.catch (function(error) {
-				console.warn('Driver has crashed, attempting to quit and restart');
+			.catch(error => {
+				console.warn('Driver has crashed, attempting to quit and restart ', error);
 				return driver.quit()
-				.catch (function() {
+				.catch(() => {
 					process.kill(driver.pid, 'SIGKILL');
 				})
-				.finally(function() {
+				.finally(() => {
 					console.warn('Driver has been renewed');
 					_.remove(self.availableDrivers, driver);//make a new one
 					_.remove(self.drivers, driver);
 					return self.buildDriver();
 				});
 			})
-			.catch (function(error) {
+			.catch(error => {
 				console.error(error);
 			});
 		});
-	},
+	}
 
 	/**
 	 * @constructs WebDriverPool
 	 * @param  {number} count The amount of webdrivers to keep in the pool
 	 */
-	init: function(settings) {
+	constructor(settings) {
 
 		this.settings = {
-			count:		1,
-			browser:	'phantomjs',
+			count: 1,
+			browser: 'phantomjs',
 			logging: {
-				path:		'webdriverfiles',
-				level:		'INFO'
+				path: 'webdriverfiles',
+				level: 'INFO'
 			},
 			storage: {
-				path:		'webdriverfiles'
+				path: 'webdriverfiles'
 			},
-			scriptTimeout:		15000,
-			pageTimeout:		15000,
-			implicitTimeout:	1500,
-			viewport:			{
-									width:	1280,
-									height:	800
-								}
+			scriptTimeout: 15000,
+			pageTimeout: 15000,
+			implicitTimeout: 1500,
+			viewport: {
+				width: 1280,
+				height: 800
+			}
 		};
 
 		_.extend(this.settings, settings);
@@ -102,79 +93,74 @@ module.exports = Class.extend(
 		this.busyDrivers = [];
 		this.getQueue = [];
 
-		this.readyPromise = Q.all(_.times(settings.count || 1, function() {
-			return this.buildDriver();
-		}, this))
+		this.readyPromise = Q.all(_.times(settings.count || 1, () => this.buildDriver(), this))
 		.thenResolve(this);
 
-		var self = this;
-
-		setInterval(function() {
-			self.checkDrivers();
+		setInterval(() => {
+			this.checkDrivers();
 		}, 5000);
-	},
+	}
 
 	/**
 	 * Returns a promise that resolves when the pool is ready
 	 * @public
 	 * @return {Promise.<WebDriverPool>}
 	 */
-	ready: function() {
+	ready() {
 		return this.readyPromise;
-	},
+	}
 
 	/**
 	 * Returns the path used for the web driver debug file
 	 * @protected
 	 * @return {string} path
 	 */
-	getLogFilePath: function() {
+	getLogFilePath() {
 		return this.settings.logging.path + '/webdriver.log';
-	},
+	}
 
 	/**
 	 * Returns the path uwhere the cookies db file should be stored
 	 * @protected
 	 * @return {string} pathflow
 	 */
-	getCookiePath: function() {
+	getCookiePath() {
 		return this.settings.storage.path + '/cookies';
-	},
+	}
 
 	/**
 	 * Returns the path uwhere the cookies db file should be stored
 	 * @protected
 	 * @return {string} path
 	 */
-	getLocalStoragePath: function() {
+	getLocalStoragePath() {
 		return this.settings.storage.path + '/localstorage';
-	},
+	}
 
 	/**
 	 * Builds the actual web driver and configures it
 	 * @protected
 	 * @return {Promise}
 	 */
-	buildDriver: function() {
+	buildDriver() {
 
-		var self = this;
-		var settings = this.settings;
+		const settings = this.settings;
 
-		var flow = new WebDriver.promise.ControlFlow();
+		const flow = new WebDriver.promise.ControlFlow();
 
-		flow.on('uncaughtException', function(error) {
+		flow.on('uncaughtException', error => {
 			console.error(error);
 		});
 
-		var builder = new WebDriver.Builder()
+		const builder = new WebDriver.Builder()
 		.withCapabilities(this.getDriverCapabilities())
 		.setControlFlow(flow);
 
-		var driver = builder.build();
+		const driver = builder.build();
 
-		var manage = driver.manage();
-		var timeouts = manage.timeouts();
-		var window = manage.window();
+		const manage = driver.manage();
+		const timeouts = manage.timeouts();
+		const window = manage.window();
 
 		return Q.all([
 			window.setPosition(0, 0),
@@ -186,52 +172,52 @@ module.exports = Class.extend(
 			timeouts.pageLoadTimeout(settings.pageTimeout),
 			timeouts.implicitlyWait(settings.implicitTimeout)
 		])
-		.then(function() {
+		.then(() => {
 			if (settings.browser === 'phantomjs') {
 				return driver.executePhantomJS(self.phantom.getProcessId)
-				.then(function(pid) {
+				.then(pid => {
 					driver.pid = pid;
 				});
 			}
+			return 0;
 		})
-		.then(function() {
+		.then(() => {
 			self.drivers.push(driver);
 			self.availableDrivers.push(driver);
 		});
-	},
+	}
 
 	/**
 	 * Builds the capabilities object required for the driver
 	 * @protected
 	 * @return {Promise.<webdriver.Capabilities>}
 	 */
-	getDriverCapabilities: function() {
+	getDriverCapabilities() {
 
-		var settings = this.settings;
+		const settings = this.settings;
 
-		var capabilities = WebDriver.Capabilities[settings.browser]();
+		const capabilities = WebDriver.Capabilities[settings.browser]();
 
 		switch (settings.browser) {
-			case 'phantomjs':
-				var headerOverrides = {
-					'phantomjs.page.customHeaders.Accept-Language': 'de-DE'
-				};
+		case 'phantomjs':
+			const headerOverrides = {};
 
-				_.each(headerOverrides, capabilities.set, capabilities);
+			_.each(headerOverrides, capabilities.set, capabilities);
 
-				var cliArgs = [
-					'--webdriver-logfile='		+ this.getLogFilePath(),
-					'--local-storage-path='		+ this.getLocalStoragePath(),
-					'--disk-cache=true',
-					'--max-disk-cache-size=16384',
-					'--cookies-file='			+ this.getCookiePath(),
-					'--webdriver-loglevel='		+ settings.logging.level
-				];
+			const cliArgs = [
+				'--webdriver-logfile='		+ this.getLogFilePath(),
+				'--local-storage-path='		+ this.getLocalStoragePath(),
+				'--disk-cache=true',
+				'--max-disk-cache-size=16384',
+				'--cookies-file='			+ this.getCookiePath(),
+				'--webdriver-loglevel='		+ settings.logging.level
+			];
 
-				return capabilities.set('phantomjs.cli.args', cliArgs);
-			case 'firefox':
+			return capabilities.set('phantomjs.cli.args', cliArgs);
+		case 'firefox':
 
-				var proxyString = util.format(
+			if (settings.proxy) {
+				const proxyString = util.format(
 					'%s:%s@%s:%s',
 					settings.proxy.username,
 					settings.proxy.password,
@@ -241,14 +227,15 @@ module.exports = Class.extend(
 
 				return capabilities.setProxy({
 					proxyType: 'manual',
-					ftpProxy:	proxyString,
-					httpProxy:	proxyString,
-					sslProxy:	proxyString
+					ftpProxy: proxyString,
+					httpProxy: proxyString,
+					sslProxy: proxyString
 				});
+			}
 		}
 
 		return capabilities;
-	},
+	}
 
 	/**
 	 * Allocated a driver from the pool.
@@ -256,37 +243,40 @@ module.exports = Class.extend(
 	 * @public
 	 * @return {Promise.<WebDriver>}
 	 */
-	getDriver: function() {
-		var self = this;
-		var settings = this.settings;
-		var ret;
+	getDriver() {
+		const settings = this.settings;
+		let ret;
 		if (this.availableDrivers.length > 0) {
-			var driver = this.availableDrivers.pop();
+			const driver = this.availableDrivers.pop();
 			this.busyDrivers.push(driver);
 			ret = new Q(driver);
 		} else {
-			var deferred = Q.defer();
+			const deferred = Q.defer();
 			this.getQueue.push(deferred);
 			ret = deferred.promise;
 		}
 		if (settings.browser === 'phantomjs') {
-			ret = ret.then(function(driver) {
-				return Q.all([
-					driver.executePhantomJS(self.phantom.setUserAgent, settings.userAgent),
-					driver.executePhantomJS(self.phantom.setProxy, settings.proxy)
-				])
+			ret = ret.then(driver => {
+				const additional = [];
+				if (this.settings.proxy) {
+					additional.push(driver.executePhantomJS(self.phantom.setProxy, settings.proxy));
+				}
+				if (this.settings.userAgent) {
+					additional.push(driver.executePhantomJS(self.phantom.setUserAgent, settings.userAgent));
+				}
+				Q.all(additional)
 				.thenResolve(driver);
 			});
 		}
 		return ret;
-	},
+	}
 
 	/**
 	 * Returns the driver back so others may use it
 	 * @public
 	 * @param  {WebDriver} driver
 	 */
-	returnDriver: function(driver) {
+	returnDriver(driver) {
 		if (_.contains(this.availableDrivers, driver)) {
 			throw new Error('Driver already returned');
 		}
@@ -295,18 +285,18 @@ module.exports = Class.extend(
 		}
 		_.remove(this.busyDrivers, driver);
 		this.availableDrivers.push(driver);
-		var deferred = this.getQueue.pop();
+		const deferred = this.getQueue.pop();
 		if (deferred) {
 			deferred.resolve(driver);
 		}
-	},
+	}
 
 	/**
 	 * Destroys the pool and terminates all drivers inside of it
 	 * @public
 	 * @return {Promise}
 	 */
-	destroy: function() {
+	destroy() {
 		return Q.all(_.invoke(this.drivers, 'quit'));
 	}
-});
+};
