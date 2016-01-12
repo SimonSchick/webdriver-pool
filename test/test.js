@@ -79,4 +79,15 @@ describe('WebDriverPool', () => {
 			);
 		});
 	});
+
+	describe('#checkDrivers()', () => {
+		it('Does not fail', function test(done) {
+			this.timeout(5500);
+			basicPool().then(pool =>
+				pool
+				.once('health', () => { console.log('done'); pool.destroy(); done(); })
+				.once('error', error => { console.error(error); pool.destroy(); done(error); })
+			);
+		});
+	});
 });
