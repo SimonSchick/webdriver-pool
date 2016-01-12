@@ -86,7 +86,7 @@ module.exports = class WebDriverPool {
 			}
 		};
 
-		_.extend(this.settings, settings);
+		_.merge(this.settings, settings);
 
 		this.drivers = [];
 		this.availableDrivers = [];
@@ -205,13 +205,18 @@ module.exports = class WebDriverPool {
 			_.each(headerOverrides, capabilities.set, capabilities);
 
 			const cliArgs = [
-				'--webdriver-logfile='		+ this.getLogFilePath(),
-				'--local-storage-path='		+ this.getLocalStoragePath(),
 				'--disk-cache=true',
-				'--max-disk-cache-size=16384',
-				'--cookies-file='			+ this.getCookiePath(),
-				'--webdriver-loglevel='		+ settings.logging.level
+				'--max-disk-cache-size=16384'
 			];
+			if (settings.logging.enabled) {
+				cliArgs.push('--webdriver-logfile=' + this.getLogFilePath());
+				cliArgs.push('--webdriver-loglevel=' + settings.logging.level);
+			}
+
+			if (settings.storage.enabled) {
+				cliArgs.push('--local-storage-path=' + this.getLocalStoragePath());
+				cliArgs.push('--cookies-file=' + this.getCookiePath());
+			}
 
 			return capabilities.set('phantomjs.cli.args', cliArgs);
 		case 'firefox':
