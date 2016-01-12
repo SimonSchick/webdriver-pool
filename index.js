@@ -50,9 +50,9 @@ module.exports = class WebDriverPool {
 				})
 				.finally(() => {
 					console.warn('Driver has been renewed');
-					_.remove(self.availableDrivers, driver);//make a new one
-					_.remove(self.drivers, driver);
-					return self.buildDriver();
+					_.remove(this.availableDrivers, driver);//make a new one
+					_.remove(this.drivers, driver);
+					return this.buildDriver();
 				});
 			})
 			.catch(error => {
@@ -182,8 +182,8 @@ module.exports = class WebDriverPool {
 			return 0;
 		})
 		.then(() => {
-			self.drivers.push(driver);
-			self.availableDrivers.push(driver);
+			this.drivers.push(driver);
+			this.availableDrivers.push(driver);
 		});
 	}
 
