@@ -20,26 +20,10 @@ const phantom = {
 	},
 
 	/**
-	 * Function ran in the phantomjs context
-	 * @param {string} userAgent
-	 */
-	setUserAgent(userAgent) {
-		this.settings.userAgent = userAgent;
-	},
-
-	/**
 	 * Function to fetch the process id in the phantomjs context
 	 */
 	getProcessId() {
 		return require('system').pid;
-	},
-
-	/**
-	 * Function to fetch the process id in the phantomjs context
-	 * @param {boolean} load
-	 */
-	setLoadImages(load) {
-		this.settings.loadImages = load;
 	}
 };
 
@@ -233,6 +217,14 @@ module.exports = class WebDriverPool extends EventEmitter {
 				cliArgs.push('--cookies-file=' + this.getCookiePath());
 			}
 
+			if (settings.userAgent) {
+				capabilities.set('phantomjs.page.settings.userAgent', settings.userAgent);
+			}
+
+			if (this.settings.loadImages === false) {
+				capabilities.set('phantomjs.page.settings.loadImages', false);
+			}
+
 			return capabilities.set('phantomjs.cli.args', cliArgs);
 		case 'firefox':
 
@@ -281,12 +273,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 				if (this.settings.proxy) {
 					additional.push(driver.executePhantomJS(phantom.setProxy, settings.proxy));
 				}
-				if (this.settings.userAgent) {
-					additional.push(driver.executePhantomJS(phantom.setUserAgent, settings.userAgent));
-				}
-				if (this.settings.loadImages === false) {
-					additional.push(driver.executePhantomJS(phantom.setLoadImages, false));
-				}
+
 				return Q.all(additional)
 				.thenResolve(driver);
 			});
