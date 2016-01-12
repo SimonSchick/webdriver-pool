@@ -4,6 +4,7 @@ const WebDriver = require('selenium-webdriver');
 const Q = require('q');
 const _ = require('lodash');
 const util = require('util');
+const EventEmitter = require('events').EventEmitter;
 
 /**
  * All functions in this object are ran in the phantomJS context
@@ -34,31 +35,37 @@ const phantom = {
 	}
 };
 
-module.exports = class WebDriverPool {
+module.exports = class WebDriverPool extends EventEmitter {
 
 	/**
 	 * Validates that all drivers are still responsive.
 	 */
 	checkDrivers() {
-		_.forEach(this.availableDrivers, driver => {
+		Q.all(this.availableDrivers.map(driver =>
 			driver.getTitle()
-			.catch(error => {
-				console.warn('Driver has crashed, attempting to quit and restart ', error);
+			.thenCatch(error => {
+				this.emit('warn', {
+					message: 'Driver has crashed, attempting to quit and restart',
+					error: error
+				});
 				return driver.quit()
-				.catch(() => {
+				.thenCatch(() => {
 					process.kill(driver.pid, 'SIGKILL');
 				})
 				.finally(() => {
-					console.warn('Driver has been renewed');
+					this.emit('warn', {
+						message: 'Driver has been renewed'
+					});
 					_.remove(this.availableDrivers, driver);//make a new one
 					_.remove(this.drivers, driver);
 					return this.buildDriver();
 				});
 			})
-			.catch(error => {
-				console.error(error);
-			});
-		});
+			.thenCatch(error => {
+				this.emit('error', error);
+			})
+		))
+		.then(() => this.emit('health'));
 	}
 
 	/**
@@ -66,7 +73,7 @@ module.exports = class WebDriverPool {
 	 * @param  {number} count The amount of webdrivers to keep in the pool
 	 */
 	constructor(settings) {
-
+		super();
 		this.settings = {
 			count: 1,
 			browser: 'phantomjs',
@@ -96,7 +103,7 @@ module.exports = class WebDriverPool {
 		this.readyPromise = Q.all(_.times(settings.count || 1, () => this.buildDriver(), this))
 		.thenResolve(this);
 
-		setInterval(() => {
+		this.healthInterval = setInterval(() => {
 			this.checkDrivers();
 		}, 5000);
 	}
@@ -149,7 +156,7 @@ module.exports = class WebDriverPool {
 		const flow = new WebDriver.promise.ControlFlow();
 
 		flow.on('uncaughtException', error => {
-			console.error(error);
+			this.emit(error);
 		});
 
 		const builder = new WebDriver.Builder()
@@ -249,7 +256,6 @@ module.exports = class WebDriverPool {
 	 * @return {Promise.<WebDriver>}
 	 */
 	getDriver() {
-		debugger;
 		const settings = this.settings;
 		let ret;
 		if (this.availableDrivers.length > 0) {
@@ -303,6 +309,13 @@ module.exports = class WebDriverPool {
 	 * @return {Promise}
 	 */
 	destroy() {
-		return Q.all(_.invoke(this.drivers, 'quit'));
+		clearInterval(this.healthInterval);
+		return Q.all(_.invoke(this.drivers, 'quit'))
+		.then(() => {
+			this.availableDrivers = [];
+			this.drivers = [];
+			this.busyDrivers = [];
+			this.getQueue = [];
+		});
 	}
 };
