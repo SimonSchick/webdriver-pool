@@ -16,8 +16,8 @@
   ],
   "author": "Simon Schick",
   "license": "ISC",
-  "depedencies": {
-    "lodash": "^3.9.1",
+  "dependencies": {
+    "lodash": "^3.10.1",
     "q": "^1.4.1"
   },
   "peerDependencies": {
