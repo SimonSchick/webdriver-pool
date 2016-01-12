@@ -1,6 +1,6 @@
 {
   "name": "webdriver-pool",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Pooling class for webdriver instances.",
   "main": "index.js",
   "scripts": {
