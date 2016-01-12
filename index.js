@@ -131,7 +131,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 	 * @return {string} path
 	 */
 	getLogFilePath() {
-		return this.settings.logging.path + '/webdriver.log';
+		return this.settings.logging.path;
 	}
 
 	/**
