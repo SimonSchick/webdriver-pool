@@ -32,6 +32,14 @@ const phantom = {
 	 */
 	getProcessId() {
 		return require('system').pid;
+	},
+
+	/**
+	 * Function to fetch the process id in the phantomjs context
+	 * @param {boolean} load
+	 */
+	setLoadImages(load) {
+		this.settings.loadImages = load;
 	}
 };
 
@@ -275,6 +283,9 @@ module.exports = class WebDriverPool extends EventEmitter {
 				}
 				if (this.settings.userAgent) {
 					additional.push(driver.executePhantomJS(phantom.setUserAgent, settings.userAgent));
+				}
+				if (this.settings.loadImages === false) {
+					additional.push(driver.executePhantomJS(phantom.setLoadImages, false));
 				}
 				return Q.all(additional)
 				.thenResolve(driver);
