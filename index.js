@@ -30,6 +30,20 @@ const phantom = {
 module.exports = class WebDriverPool extends EventEmitter {
 
 	/**
+	 * Terminates a driver
+	 */
+	killDriver(driver) {
+		return driver.quit()
+		.thenCatch(error => {
+			this.emit('warn', {
+				message: 'Driver with pid' + driver.pid + ' is unresponsive, attempting SIGKILL',
+				error: error
+			});
+			process.kill(driver.pid, 'SIGKILL');
+		});
+	}
+
+	/**
 	 * Validates that all drivers are still responsive.
 	 */
 	checkDrivers() {
@@ -40,10 +54,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 					message: 'Driver has crashed, attempting to quit and restart',
 					error: error
 				});
-				return driver.quit()
-				.thenCatch(() => {
-					process.kill(driver.pid, 'SIGKILL');
-				})
+				return this.killDriver(driver)
 				.finally(() => {
 					this.emit('warn', {
 						message: 'Driver has been renewed'
@@ -300,6 +311,19 @@ module.exports = class WebDriverPool extends EventEmitter {
 		}
 		_.remove(this.busyDrivers, driver);
 		this.availableDrivers.push(driver);
+	}
+
+	/**
+	 * Since some drivers are unstable, this is a way to request a renewal of the given driver.
+	 * @param  {WebDriver} driver
+	 * @return {Promise}
+	 */
+	renewDriver(driver) {
+		_.remove(this.availableDrivers, driver);
+		_.remove(this.drivers, driver);
+		_.remove(this.busyDrivers, driver);
+		return this.killDriver(driver)
+		.then(() => this.buildDriver());
 	}
 
 	/**

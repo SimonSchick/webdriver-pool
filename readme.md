@@ -65,3 +65,6 @@ Should be called when the driver is no longer needed, makes it available for oth
 
 #Promise destroy()
 Kills all drivers, do not use object after calling this method.
+
+#renewDriver(driver)
+Kills the given driver and replaces it with a "healthy" new driver.

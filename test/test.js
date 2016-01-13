@@ -20,39 +20,30 @@ function basicPool() {
 describe('WebDriverPool', () => {
 	describe('#init()', () => {
 
-		it('can build one driver', done => {
+		it('can build one driver', () =>
 			basicPool()
 			.then(pool => {
 				assert.equal(pool.availableDrivers.length, 1);
-				done();
 				return pool.destroy();
 			})
-			.catch(done)
-			.done();
-		});
+		);
 	});
 
 	describe('#ready()', () => {
-		it('Returns a promise that resolves once all drivers are build', done => {
+		it('Returns a promise that resolves once all drivers are build', () =>
 			basicPool()
-			.then(pool => {
-				done();
-				return pool.destroy();
-			}, done)
-			.done();
-		});
+			.then(pool => pool.destroy())
+		);
 	});
 
 	describe('#getDriver()', () => {
-		it('Returns a promise that resolves a driver', done => {
+		it('Returns a promise that resolves a driver', () => {
 			basicPool()
 			.then(pool =>
 				pool.getDriver()
 				.then(driver => {
 					assert(driver instanceof WebDriver);
-					done();
 				})
-				.catch(done)
 				.finally(() => {
 					pool.destroy();
 				})
@@ -62,7 +53,7 @@ describe('WebDriverPool', () => {
 	});
 
 	describe('#returnDriver()', () => {
-		it('Returns the driver back to the pool for the next in the queue to receive it', done => {
+		it('Returns the driver back to the pool for the next in the queue to receive it', () => {
 			basicPool()
 			.then(pool =>
 				pool.getDriver()
@@ -73,16 +64,30 @@ describe('WebDriverPool', () => {
 					pool.getDriver(pool)
 				)
 				.finally(() => {
-					done();
 					pool.destroy();
 				})
 			);
 		});
 	});
 
+	describe('#renewDriver()', () => {
+		it('Creates a new driver', () => {
+			let driver1;
+			let pool1;
+			return basicPool()
+			.then(pool => { pool1 = pool; return pool.getDriver(); })
+			.then(driver => { driver1 = driver; return pool1.renewDriver(driver); })
+			.then(() => pool1.getDriver())
+			.then(driver => {
+				assert.notEqual(driver, driver1);
+			})
+			.finally(() => pool1.destroy());
+		});
+	});
+
 	describe('#checkDrivers()', () => {
 		it('Does not fail', function test(done) {
-			this.timeout(5500);
+			this.timeout(5500); //eslint-disable-line no-invalid-this
 			basicPool().then(pool =>
 				pool
 				.once('health', () => { console.log('done'); pool.destroy(); done(); })
