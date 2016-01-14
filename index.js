@@ -35,11 +35,15 @@ module.exports = class WebDriverPool extends EventEmitter {
 	killDriver(driver) {
 		return driver.quit()
 		.thenCatch(error => {
-			this.emit('warn', {
-				message: 'Driver with pid' + driver.pid + ' is unresponsive, attempting SIGKILL',
-				error: error
-			});
-			process.kill(driver.pid, 'SIGKILL');
+			if (driver.pid) {
+				this.emit('warn', {
+					message: 'Driver with pid' + driver.pid + ' is unresponsive, attempting SIGKILL',
+					error: error
+				});
+				process.kill(driver.pid, 'SIGKILL');
+				return;
+			}
+			throw error;
 		});
 	}
 
