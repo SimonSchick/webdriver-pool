@@ -56,17 +56,17 @@ All settings:
 }
 ```
 
-#Promise ready
+#Promise Pool.ready
 Promise that will resolve once the pool is set up.
 
-#Promise<WebDriver> getDriver()
+#Promise<WebDriver> Pool.getDriver()
 Request a driver from the pool, will queue if all drivers are busy.
 
-#returnDriver(WebDriver)
+#Pool.returnDriver(WebDriver)
 Should be called when the driver is no longer needed, makes it available for other operations.
 
-#Promise destroy()
+#Promise Pool.destroy()
 Kills all drivers, do not use object after calling this method.
 
-#renewDriver(driver)
+#Promise Pool.renewDriver(driver)
 Kills the given driver and replaces it with a "healthy" new driver.
