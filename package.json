@@ -22,5 +22,8 @@
   },
   "peerDependencies": {
     "selenium-webdriver": "^2.48.2"
+  },
+  "engines": {
+  	"node": ">=4.0.0"
   }
 }
