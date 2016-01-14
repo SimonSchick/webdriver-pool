@@ -1,5 +1,7 @@
 # webdriver-pool
 
+This project was created out of frustration over the general stability of primarily phantomJS, it attempts to make controlling a number of webdriver instances more easy by providing a pooling functionality, the pool offers auto regeneration for broken drivers and relatively simplistic configuration options, it was made for certain use-cases only and is rather limited in functionality, PRs are welcome.
+
 For simple example usage, please see the test folder.
 
 ## constructor(Object settings)
