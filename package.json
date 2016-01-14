@@ -1,6 +1,6 @@
 {
   "name": "webdriver-pool",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Pooling class for webdriver instances.",
   "main": "index.js",
   "scripts": {
@@ -24,6 +24,6 @@
     "selenium-webdriver": "^2.48.2"
   },
   "engines": {
-  	"node": ">=4.0.0"
+    "node": ">=4.0.0"
   }
 }
