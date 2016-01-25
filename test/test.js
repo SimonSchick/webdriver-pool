@@ -10,9 +10,14 @@ const WebDriver = webdriver.WebDriver;
 /* global describe, it */
 
 function basicPool() {
-	return new WebDriverPool({
+	const pool = new WebDriverPool({
 		count: 1
-	}).ready();
+	});
+	if (process.env.VERBOSE) {
+		pool.on('warn', warning => console.warn(warning))
+		.on('error', error => console.error(error.stack));
+	}
+	return pool.ready();
 }
 
 /* eslint-disable max-nested-callbacks */
@@ -47,8 +52,7 @@ describe('WebDriverPool', () => {
 				.finally(() => {
 					pool.destroy();
 				})
-			)
-			.done();
+			);
 		});
 	});
 
@@ -65,6 +69,22 @@ describe('WebDriverPool', () => {
 				)
 				.finally(() => {
 					pool.destroy();
+				})
+			);
+		});
+
+		it('Restores a driver that stopped working', function test() {
+			this.timeout(8000); //eslint-disable-line no-invalid-this
+			return basicPool()
+			.then(pool =>
+				pool.getDriver()
+				.then(driver => {
+					process.kill(driver.pid, 'SIGKILL');
+					return pool.returnDriver(driver)
+					.then(() => pool.getDriver())
+					.then(driver2 => {
+						assert.notEqual(driver, driver2, 'Not a new driver');
+					});
 				})
 			);
 		});
@@ -90,8 +110,8 @@ describe('WebDriverPool', () => {
 			this.timeout(5500); //eslint-disable-line no-invalid-this
 			basicPool().then(pool =>
 				pool
-				.once('health', () => { console.log('done'); pool.destroy(); done(); })
-				.once('error', error => { console.error(error); pool.destroy(); done(error); })
+				.once('health', () => { pool.destroy(); done(); })
+				.once('error', error => { pool.destroy(); done(error); })
 			);
 		});
 	});
