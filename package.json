@@ -4,7 +4,7 @@
   "description": "Pooling class for webdriver instances.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "node_modules/mocha/bin/_mocha test"
   },
   "repository": {
     "type": "git",
@@ -25,5 +25,8 @@
   },
   "engines": {
     "node": ">=4.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^2.3.4"
   }
 }
