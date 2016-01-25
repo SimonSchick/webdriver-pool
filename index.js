@@ -6,6 +6,13 @@ const _ = require('lodash');
 const util = require('util');
 const EventEmitter = require('events').EventEmitter;
 
+const WPromise = WebDriver.promise.Promise.prototype;
+WPromise.catch = WPromise.thenCatch;
+WPromise.finally = function fin(handler) { //eslint-disable-line prefer-arrow
+	return this.then(val => handler(val),
+	error => handler(error));
+};
+
 /**
  * All functions in this object are ran in the phantomJS context
  */
@@ -22,10 +29,16 @@ const phantom = {
 	/**
 	 * Function to fetch the process id in the phantomjs context
 	 */
-	getProcessId() {
-		return require('system').pid;
-	}
+	getProcessId: 'return require(\'system\').pid;'
 };
+
+function fixupSyncThrow(subject, call) {
+	try {
+		return subject[call](); //May throw sync, BAD google.
+	} catch (error) {
+		return Q.reject(error);
+	}
+}
 
 module.exports = class WebDriverPool extends EventEmitter {
 
@@ -33,17 +46,50 @@ module.exports = class WebDriverPool extends EventEmitter {
 	 * Terminates a driver
 	 */
 	killDriver(driver) {
-		return driver.quit()
-		.thenCatch(error => {
+		return fixupSyncThrow(driver, 'quit')
+		.catch(error => {
 			if (driver.pid) {
 				this.emit('warn', {
 					message: 'Driver with pid' + driver.pid + ' is unresponsive, attempting SIGKILL',
 					error: error
 				});
-				process.kill(driver.pid, 'SIGKILL');
+				try {
+					process.kill(driver.pid, 'SIGKILL');
+				} catch (error) {
+					this.emit('warn', {
+						message: 'Driver with id ' + driver.pid + ' is already terminated',
+						error: error
+					});
+				}
 				return;
 			}
 			throw error;
+		});
+	}
+
+	/**
+	 * Validates that all drivers are still responsive, renews it if it becomes unresponsive.
+	 * @private
+	 * @param {WebDriver} driver The driver to be checked.
+	 * @return {Promise.<{status: boolean, driver: WebDriver}>}
+	 */
+	checkSingleDriver(driver) {
+		return fixupSyncThrow(driver, 'getTitle')
+		.then(() => ({status: true}), error => {
+			this.emit('warn', {
+				message: 'Driver has crashed, attempting to quit and restart',
+				error: error
+			});
+			return this.renewDriver(driver)
+			.then(driver => {
+				this.emit('warn', {
+					message: 'Driver has been renewed'
+				});
+				return {
+					status: false,
+					driver: driver
+				};
+			});
 		});
 	}
 
@@ -52,27 +98,9 @@ module.exports = class WebDriverPool extends EventEmitter {
 	 */
 	checkDrivers() {
 		Q.all(this.availableDrivers.map(driver =>
-			driver.getTitle()
-			.thenCatch(error => {
-				this.emit('warn', {
-					message: 'Driver has crashed, attempting to quit and restart',
-					error: error
-				});
-				return this.killDriver(driver)
-				.finally(() => {
-					this.emit('warn', {
-						message: 'Driver has been renewed'
-					});
-					_.remove(this.availableDrivers, driver);//make a new one
-					_.remove(this.drivers, driver);
-					return this.buildDriver();
-				});
-			})
-			.thenCatch(error => {
-				this.emit('error', error);
-			})
+			this.checkSingleDriver(driver)
 		))
-		.then(() => this.emit('health'));
+		.finally(() => this.emit('health'));
 	}
 
 	/**
@@ -154,7 +182,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 	/**
 	 * Builds the actual web driver and configures it
 	 * @protected
-	 * @return {Promise}
+	 * @return {Promise.<WebDriver>}
 	 */
 	buildDriver() {
 
@@ -198,6 +226,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 		.then(() => {
 			this.drivers.push(driver);
 			this.availableDrivers.push(driver);
+			return driver;
 		});
 	}
 
@@ -300,6 +329,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 	 * Returns the driver back so others may use it
 	 * @public
 	 * @param  {WebDriver} driver
+	 * @return {Promise}
 	 */
 	returnDriver(driver) {
 		if (_.contains(this.availableDrivers, driver)) {
@@ -308,19 +338,30 @@ module.exports = class WebDriverPool extends EventEmitter {
 		if (!_.contains(this.drivers, driver)) {
 			throw new Error('Driver does not belong to pool');
 		}
-		const deferred = this.getQueue.pop();
-		if (deferred) {
-			deferred.resolve(driver);
-			return;
-		}
-		_.remove(this.busyDrivers, driver);
-		this.availableDrivers.push(driver);
+		return this.checkSingleDriver(driver)
+		.then(report => {
+			if (report.status) {
+				const deferred = this.getQueue.pop();
+				if (deferred) {
+					deferred.resolve(driver);
+					return;
+				}
+				_.remove(this.busyDrivers, driver);
+				this.availableDrivers.push(driver);
+			} else {
+				const deferred = this.getQueue.pop();
+				if (deferred) {
+					deferred.resolve(report.driver);
+				}
+			}
+
+		});
 	}
 
 	/**
 	 * Since some drivers are unstable, this is a way to request a renewal of the given driver.
 	 * @param  {WebDriver} driver
-	 * @return {Promise}
+	 * @return {Promise.<WebDriver>}
 	 */
 	renewDriver(driver) {
 		_.remove(this.availableDrivers, driver);
