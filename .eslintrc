@@ -38,7 +38,6 @@
 		"dot-notation": 1,
 		"guard-for-in": 1,
 		"no-caller": 2,
-		"no-case-declarations": 1,
 		"no-else-return": 1,
 		"no-empty-label": 2,
 		"no-empty-pattern": 2,
@@ -153,6 +152,10 @@
 		"prefer-arrow-callback": 2,
 		"prefer-const": 1,
 		"prefer-spread": 1,
-		"require-yield": 1
+		"require-yield": 1,
+
+		"valid-jsdoc": [2, {
+			"requireReturn": false
+		}]
 	}
 }
