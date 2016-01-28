@@ -21,16 +21,21 @@ const phantom = {
 	 * Sets the proxy.
 	 * @param {Object} proxy
 	 */
-	setProxy(proxy) {
-		phantom.setProxy(proxy.address, proxy.port, 'http', proxy.username, proxy.password);
-		return true;
-	},
+	setProxy: `var proxy = arguments[0];
+	phantom.setProxy(proxy.address, proxy.port, 'http', proxy.username, proxy.password);
+	`,
 
 	/**
 	 * Function to fetch the process id in the phantomjs context
 	 */
 	getProcessId: 'return require(\'system\').pid;'
 };
+
+/* eslint-disable max-len */
+/**
+ * @external {WebDriver} https://selenium.googlecode.com/git/docs/api/javascript/module_selenium-webdriver_class_WebDriver.html
+ */
+/* eslint-enable max-len */
 
 function fixupSyncThrow(subject, call) {
 	try {
@@ -44,6 +49,8 @@ module.exports = class WebDriverPool extends EventEmitter {
 
 	/**
 	 * Terminates a driver
+	 * @param {WebDriver} driver The driver to be killed.
+	 * @return {Promise} Resolves when the driver was killed.
 	 */
 	killDriver(driver) {
 		return fixupSyncThrow(driver, 'quit')
@@ -51,14 +58,14 @@ module.exports = class WebDriverPool extends EventEmitter {
 			if (driver.pid) {
 				this.emit('warn', {
 					message: 'Driver with pid' + driver.pid + ' is unresponsive, attempting SIGKILL',
-					error: error
+					error
 				});
 				try {
 					process.kill(driver.pid, 'SIGKILL');
 				} catch (error) {
 					this.emit('warn', {
 						message: 'Driver with id ' + driver.pid + ' is already terminated',
-						error: error
+						error
 					});
 				}
 				return;
@@ -71,14 +78,16 @@ module.exports = class WebDriverPool extends EventEmitter {
 	 * Validates that all drivers are still responsive, renews it if it becomes unresponsive.
 	 * @private
 	 * @param {WebDriver} driver The driver to be checked.
-	 * @return {Promise.<{status: boolean, driver: WebDriver}>}
+	 * @return {Promise.<{status: boolean, driver: !WebDriver}>} When the check fails the
+	 * promise will resolve an object with a new driver and status false.
+	 * Otherwise only status being true.
 	 */
 	checkSingleDriver(driver) {
 		return fixupSyncThrow(driver, 'getTitle')
 		.then(() => ({status: true}), error => {
 			this.emit('warn', {
 				message: 'Driver has crashed, attempting to quit and restart',
-				error: error
+				error
 			});
 			return this.renewDriver(driver)
 			.then(driver => {
@@ -87,7 +96,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 				});
 				return {
 					status: false,
-					driver: driver
+					driver
 				};
 			});
 		});
@@ -104,8 +113,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 	}
 
 	/**
-	 * @constructs WebDriverPool
-	 * @param  {number} count The amount of webdrivers to keep in the pool
+	 * @param  {Object} settings The settings for the drivers.
 	 */
 	constructor(settings) {
 		super();
@@ -135,18 +143,33 @@ module.exports = class WebDriverPool extends EventEmitter {
 		this.busyDrivers = [];
 		this.getQueue = [];
 
-		this.readyPromise = Q.all(_.times(settings.count || 1, () => this.buildDriver(), this))
-		.thenResolve(this);
+		this.start();
+	}
 
+	/**
+	 * Starts the drivers and heartbeat check.
+	 * @public
+	 * @return {Promise} Resolves when ready.
+	 */
+	start() {
+		if (this.readyPromise) {
+			return this.readyPromise;
+		}
 		this.healthInterval = setInterval(() => {
 			this.checkDrivers();
 		}, 5000);
+
+		this.readyPromise = Q.all(_.times(this.settings.count || 1, () => this.buildDriver(), this))
+		.thenResolve(this);
+		return this.readyPromise;
 	}
 
 	/**
 	 * Returns a promise that resolves when the pool is ready
 	 * @public
-	 * @return {Promise.<WebDriverPool>}
+	 * @deprecated Currently the constructor launches webdriver instances, in the future you'll
+	 * need to call this [start]@link{start} instead.
+	 * @return {Promise.<WebDriverPool>} Resolves when the pool is ready.
 	 */
 	ready() {
 		return this.readyPromise;
@@ -182,7 +205,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 	/**
 	 * Builds the actual web driver and configures it
 	 * @protected
-	 * @return {Promise.<WebDriver>}
+	 * @return {Promise.<WebDriver>} Resolves the newly created driver.
 	 */
 	buildDriver() {
 
@@ -233,7 +256,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 	/**
 	 * Builds the capabilities object required for the driver
 	 * @protected
-	 * @return {Promise.<webdriver.Capabilities>}
+	 * @return {Promise.<webdriver.Capabilities>} Resolves the wanted capabilities.
 	 */
 	getDriverCapabilities() {
 
@@ -294,10 +317,10 @@ module.exports = class WebDriverPool extends EventEmitter {
 	}
 
 	/**
-	 * Allocated a driver from the pool.
+	 * Allocates a driver from the pool.
 	 * If no drivers are available at the time the allocation will be queued.
 	 * @public
-	 * @return {Promise.<WebDriver>}
+	 * @return {Promise.<WebDriver>} Resolves a driver once one is available.
 	 */
 	getDriver() {
 		const settings = this.settings;
@@ -328,8 +351,8 @@ module.exports = class WebDriverPool extends EventEmitter {
 	/**
 	 * Returns the driver back so others may use it
 	 * @public
-	 * @param  {WebDriver} driver
-	 * @return {Promise}
+	 * @param  {WebDriver} driver The driver to be returned.
+	 * @return {Promise} Resolves once the driver has been returned and a health check was run.
 	 */
 	returnDriver(driver) {
 		if (_.contains(this.availableDrivers, driver)) {
@@ -360,8 +383,8 @@ module.exports = class WebDriverPool extends EventEmitter {
 
 	/**
 	 * Since some drivers are unstable, this is a way to request a renewal of the given driver.
-	 * @param  {WebDriver} driver
-	 * @return {Promise.<WebDriver>}
+	 * @param  {WebDriver} driver The driver to be renewed.
+	 * @return {Promise.<WebDriver>} Resolves a replacement driver.
 	 */
 	renewDriver(driver) {
 		_.remove(this.availableDrivers, driver);
@@ -374,7 +397,7 @@ module.exports = class WebDriverPool extends EventEmitter {
 	/**
 	 * Destroys the pool and terminates all drivers inside of it
 	 * @public
-	 * @return {Promise}
+	 * @return {Promise} Resolves once all drivers have terminated.
 	 */
 	destroy() {
 		clearInterval(this.healthInterval);
