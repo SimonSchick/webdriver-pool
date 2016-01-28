@@ -41,6 +41,13 @@ describe('WebDriverPool', () => {
 		);
 	});
 
+	describe('#start()', () => {
+		it('Starts the pool and resolves once ready', () =>
+			basicPool()
+			.then(pool => pool.destroy())
+		);
+	});
+
 	describe('#getDriver()', () => {
 		it('Returns a promise that resolves a driver', () => {
 			basicPool()
